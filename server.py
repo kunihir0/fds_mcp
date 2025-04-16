@@ -4,6 +4,7 @@ import httpx
 import logging
 import sys
 from mcp.server.fastmcp import FastMCP
+from dotenv import load_dotenv
 
 # Configure logging to write to stderr
 logging.basicConfig(
@@ -50,17 +51,24 @@ async def get_income_statements(
         limit: Number of income statements to return (default: 4)
     """
     # Fetch data from the API
-    url = f"{FINANCIAL_DATASETS_API_BASE}/income-statements/{ticker}?period={period}&limit={limit}"
+    # Corrected URL structure based on working examples (/prices/)
+    url = f"{FINANCIAL_DATASETS_API_BASE}/financials/?statement=income-statement&ticker={ticker}&period={period}&limit={limit}"
     data = await make_request(url)
 
-    # Check if data is found
+    # Check if make_request returned an error
+    if isinstance(data, dict) and "Error" in data:
+        logger.error(f"API Error for {url}: {data['Error']}") # Log the specific error
+        return f"API Error: {data['Error']}" # Return the specific error
+
+    # Check if data is found (make_request could potentially return None)
     if not data:
-        return "Unable to fetch income statements or no income statements found."
+        logger.warning(f"No data received from {url}")
+        return "Unable to fetch income statements (No data received)."
 
     # Extract the income statements
     income_statements = data.get("income_statements", [])
 
-    # Check if income statements are found
+    # Check if income statements are found in the successful response
     if not income_statements:
         return "Unable to fetch income statements or no income statements found."
 
@@ -330,6 +338,7 @@ async def get_current_crypto_price(ticker: str) -> str:
 
 
 if __name__ == "__main__":
+    load_dotenv()  # Load environment variables from .env file
     # Log server startup
     logger.info("Starting Financial Datasets MCP Server...")
 
